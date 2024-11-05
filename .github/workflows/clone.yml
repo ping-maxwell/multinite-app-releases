@@ -12,5 +12,6 @@ jobs:
       - name: Run action
         uses: andrewthetechie/gha-clone-releases@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.TOKEN }}
           src_repo: multinite/multinite-app
+          copy_assets: true
