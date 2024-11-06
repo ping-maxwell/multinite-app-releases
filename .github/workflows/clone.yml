@@ -27,8 +27,19 @@ jobs:
           RELEASE_INFO=$(curl -s -H "Authorization: token ${SRC_REPO_TOKEN}" \
             "https://api.github.com/repos/multinite/multinite-app/releases/latest")
           
-          # Get version, name, and body
-          VERSION=$(echo $RELEASE_INFO | jq -r .tag_name)
+          # Check for errors in the API response
+          if echo "$RELEASE_INFO" | jq -e '.message' >/dev/null; then
+            ERROR_MSG=$(echo "$RELEASE_INFO" | jq -r '.message')
+            echo "Error accessing GitHub API: $ERROR_MSG"
+            exit 1
+          fi
+          
+          # Get version and verify it's not null
+          VERSION=$(echo "$RELEASE_INFO" | jq -r .tag_name)
+          if [ "$VERSION" = "null" ] || [ -z "$VERSION" ]; then
+            echo "Error: Could not determine version from release info"
+            exit 1
+          fi
           
           # Check if release already exists in destination repo
           if gh release view "$VERSION" &>/dev/null; then
@@ -36,21 +47,43 @@ jobs:
             exit 0
           fi
           
+          # Verify we have required release information
+          RELEASE_NAME=$(echo "$RELEASE_INFO" | jq -r .name)
+          RELEASE_BODY=$(echo "$RELEASE_INFO" | jq -r .body)
+          
+          if [ "$RELEASE_NAME" = "null" ] || [ -z "$RELEASE_NAME" ]; then
+            echo "Error: Release name is missing"
+            exit 1
+          fi
+          
           echo "New release detected: $VERSION"
-          RELEASE_NAME=$(echo $RELEASE_INFO | jq -r .name)
-          RELEASE_BODY=$(echo $RELEASE_INFO | jq -r .body)
+          
+          # Check if there are any assets
+          ASSET_COUNT=$(echo "$RELEASE_INFO" | jq '.assets | length')
+          if [ "$ASSET_COUNT" -eq 0 ]; then
+            echo "No assets found in release"
+            exit 1
+          fi
           
           # Create directory for assets
           mkdir -p assets
           cd assets
           
           # Download assets with proper names
-          echo $RELEASE_INFO | jq -r '.assets[] | select(.name | test("\\.(msi|exe|dmg|deb|rpm|AppImage|json)$")) | [.name, .url] | @tsv' | while IFS=$'\t' read -r NAME URL; do
-            echo "Downloading $NAME from $URL"
-            curl -L -H "Authorization: token ${SRC_REPO_TOKEN}" \
-              -H "Accept: application/octet-stream" \
-              "$URL" --output "$NAME"
+          echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | test("\\.(msi|exe|dmg|deb|rpm|AppImage|json)$")) | [.name, .url] | @tsv' | while IFS=$'\t' read -r NAME URL; do
+            if [ -n "$NAME" ] && [ -n "$URL" ]; then
+              echo "Downloading $NAME from $URL"
+              curl -L -H "Authorization: token ${SRC_REPO_TOKEN}" \
+                -H "Accept: application/octet-stream" \
+                "$URL" --output "$NAME"
+            fi
           done
+          
+          # Verify we have downloaded files
+          if [ -z "$(ls -A)" ]; then
+            echo "Error: No files were downloaded"
+            exit 1
+          fi
           
           # List downloaded files
           echo "Downloaded files:"
