@@ -14,6 +14,7 @@ jobs:
         env:
           SRC_REPO_TOKEN: ${{ secrets.TOKEN }}  # Token with access to private repo
           DEST_REPO_TOKEN: ${{ secrets.TOKEN }}   # Token for this public repo
+          GH_TOKEN: ${{ secrets.TOKEN }}
         run: |
           # Get latest release from source repo
           RELEASE_INFO=$(curl -s -H "Authorization: token ${SRC_REPO_TOKEN}" \
@@ -33,5 +34,3 @@ jobs:
           gh release create $VERSION *.{msi,exe,dmg,deb,rpm,AppImage,json} \
             --title "Release $VERSION" \
             --notes "Mirrored from private repository"
-        env:
-          GH_TOKEN: ${{ secrets.TOKEN }}
