@@ -27,8 +27,13 @@ jobs:
           echo "Release info received:"
           echo $RELEASE_INFO | jq '.'
 
+          # Get version, name, and body
           VERSION=$(echo $RELEASE_INFO | jq -r .tag_name)
+          RELEASE_NAME=$(echo $RELEASE_INFO | jq -r .name)
+          RELEASE_BODY=$(echo $RELEASE_INFO | jq -r .body)
+
           echo "Latest version: $VERSION"
+          echo "Release name: $RELEASE_NAME"
 
           # Create directory for assets
           mkdir -p assets
@@ -46,8 +51,9 @@ jobs:
           echo "Downloaded files:"
           ls -la
 
-          # Create new release
+          # Create new release with same name and body
           echo "Creating release $VERSION"
+          echo "$RELEASE_BODY" > release_notes.md
           gh release create "$VERSION" * \
-            --title "Release $VERSION" \
-            --notes "Mirrored from private repository"
+            --title "$RELEASE_NAME" \
+            --notes-file release_notes.md
