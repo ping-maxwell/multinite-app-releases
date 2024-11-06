@@ -2,7 +2,11 @@ name: Clone Releases
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */12 * * *" # Every 12 hours
+    - cron: "0 */12 * * *"
+
+permissions:
+  contents: write
+  packages: read
 
 jobs:
   copy-releases:
@@ -12,33 +16,34 @@ jobs:
 
       - name: Copy Release Assets
         env:
-          SRC_REPO_TOKEN: ${{ secrets.TOKEN }} # Token with access to private repo
-          DEST_REPO_TOKEN: ${{ secrets.TOKEN }} # Token for this public repo
-          GH_TOKEN: ${{ secrets.TOKEN }}
+          SRC_REPO_TOKEN: ${{ secrets.SRC_REPO_TOKEN }}
+          DEST_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Enable debug output
           set -x
 
-          echo "Fetching latest release info..."
+          echo "Fetching latest release info from source repo..."
           RELEASE_INFO=$(curl -s -H "Authorization: token ${SRC_REPO_TOKEN}" \
             "https://api.github.com/repos/multinite/multinite-app/releases/latest")
-
-          # Check if we got release info
-          echo "Release info received:"
-          echo $RELEASE_INFO | jq '.'
-
+          
           # Get version, name, and body
           VERSION=$(echo $RELEASE_INFO | jq -r .tag_name)
+          
+          # Check if release already exists in destination repo
+          if gh release view "$VERSION" &>/dev/null; then
+            echo "Release $VERSION already exists in destination repo. Skipping."
+            exit 0
+          fi
+          
+          echo "New release detected: $VERSION"
           RELEASE_NAME=$(echo $RELEASE_INFO | jq -r .name)
           RELEASE_BODY=$(echo $RELEASE_INFO | jq -r .body)
-
-          echo "Latest version: $VERSION"
-          echo "Release name: $RELEASE_NAME"
-
+          
           # Create directory for assets
           mkdir -p assets
           cd assets
-
+          
           # Download assets with proper names
           echo $RELEASE_INFO | jq -r '.assets[] | select(.name | test("\\.(msi|exe|dmg|deb|rpm|AppImage|json)$")) | [.name, .url] | @tsv' | while IFS=$'\t' read -r NAME URL; do
             echo "Downloading $NAME from $URL"
@@ -46,11 +51,11 @@ jobs:
               -H "Accept: application/octet-stream" \
               "$URL" --output "$NAME"
           done
-
+          
           # List downloaded files
           echo "Downloaded files:"
           ls -la
-
+          
           # Create new release with same name and body
           echo "Creating release $VERSION"
           echo "$RELEASE_BODY" > release_notes.md
