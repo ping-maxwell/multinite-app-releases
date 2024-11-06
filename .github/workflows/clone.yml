@@ -2,7 +2,7 @@ name: Clone Releases
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */12 * * *"  # Every 12 hours
+    - cron: "0 */12 * * *" # Every 12 hours
 
 jobs:
   copy-releases:
@@ -12,25 +12,42 @@ jobs:
 
       - name: Copy Release Assets
         env:
-          SRC_REPO_TOKEN: ${{ secrets.TOKEN }}  # Token with access to private repo
-          DEST_REPO_TOKEN: ${{ secrets.TOKEN }}   # Token for this public repo
+          SRC_REPO_TOKEN: ${{ secrets.TOKEN }} # Token with access to private repo
+          DEST_REPO_TOKEN: ${{ secrets.TOKEN }} # Token for this public repo
           GH_TOKEN: ${{ secrets.TOKEN }}
         run: |
-          # Get latest release from source repo
+          # Enable debug output
+          set -x
+
+          echo "Fetching latest release info..."
           RELEASE_INFO=$(curl -s -H "Authorization: token ${SRC_REPO_TOKEN}" \
             "https://api.github.com/repos/multinite/multinite-app/releases/latest")
-          
+
+          # Check if we got release info
+          echo "Release info received:"
+          echo $RELEASE_INFO | jq '.'
+
           VERSION=$(echo $RELEASE_INFO | jq -r .tag_name)
-          
-          # Download only specific asset types
-          echo $RELEASE_INFO | jq -r '.assets[] | select(.name | test("\\.(msi|exe|dmg|deb|rpm|AppImage|json)$")) | .url' | while read URL; do
-            # Download asset
-            curl -J -L -H "Authorization: token ${SRC_REPO_TOKEN}" \
+          echo "Latest version: $VERSION"
+
+          # Create directory for assets
+          mkdir -p assets
+          cd assets
+
+          # Download assets with proper names
+          echo $RELEASE_INFO | jq -r '.assets[] | select(.name | test("\\.(msi|exe|dmg|deb|rpm|AppImage|json)$")) | [.name, .url] | @tsv' | while IFS=$'\t' read -r NAME URL; do
+            echo "Downloading $NAME from $URL"
+            curl -L -H "Authorization: token ${SRC_REPO_TOKEN}" \
               -H "Accept: application/octet-stream" \
-              "$URL" --output "$(basename "$URL")"
+              "$URL" --output "$NAME"
           done
-          
-          # Create new release in public repo
-          gh release create $VERSION *.{msi,exe,dmg,deb,rpm,AppImage,json} \
+
+          # List downloaded files
+          echo "Downloaded files:"
+          ls -la
+
+          # Create new release
+          echo "Creating release $VERSION"
+          gh release create "$VERSION" * \
             --title "Release $VERSION" \
             --notes "Mirrored from private repository"
