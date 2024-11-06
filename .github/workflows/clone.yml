@@ -21,7 +21,7 @@ jobs:
           GH_TOKEN: ${{ secrets.TOKEN }}
         run: |
           # Enable debug output
-          set -x
+          #set -x
 
           echo "Fetching latest release info from source repo..."
           RELEASE_INFO=$(curl -s -H "Authorization: token ${SRC_REPO_TOKEN}" \
