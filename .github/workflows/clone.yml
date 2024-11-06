@@ -70,7 +70,7 @@ jobs:
           cd assets
           
           # Download assets with proper names
-          echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | test("\\.(msi|exe|dmg|deb|rpm|AppImage|json)$")) | [.name, .url] | @tsv' | while IFS=$'\t' read -r NAME URL; do
+          echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | test("\\.(msi|exe|dmg|deb|rpm|AppImage|json|sig)$")) | [.name, .url] | @tsv' | while IFS=$'\t' read -r NAME URL; do
             if [ -n "$NAME" ] && [ -n "$URL" ]; then
               echo "Downloading $NAME from $URL"
               curl -L -H "Authorization: token ${SRC_REPO_TOKEN}" \
