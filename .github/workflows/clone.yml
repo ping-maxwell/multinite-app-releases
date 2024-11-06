@@ -1,17 +1,37 @@
-name: Clone
+name: Clone Releases
 on:
-  # kick off the job on demand
   workflow_dispatch:
-  # and run on a schedule every 12 hours
   schedule:
-    - cron: "* */12 * * *"
+    - cron: "0 */12 * * *"  # Every 12 hours
+
 jobs:
-  build:
+  copy-releases:
     runs-on: ubuntu-latest
     steps:
-      - name: Run action
-        uses: andrewthetechie/gha-clone-releases@v1
-        with:
-          token: ${{ secrets.TOKEN }}
-          src_repo: multinite/multinite-app
-          copy_assets: true
+      - uses: actions/checkout@v4
+
+      - name: Copy Release Assets
+        env:
+          SRC_REPO_TOKEN: ${{ secrets.TOKEN }}  # Token with access to private repo
+          DEST_REPO_TOKEN: ${{ secrets.TOKEN }}   # Token for this public repo
+        run: |
+          # Get latest release from source repo
+          RELEASE_INFO=$(curl -s -H "Authorization: token ${SRC_REPO_TOKEN}" \
+            "https://api.github.com/repos/multinite/multinite-app/releases/latest")
+          
+          VERSION=$(echo $RELEASE_INFO | jq -r .tag_name)
+          
+          # Download only specific asset types
+          echo $RELEASE_INFO | jq -r '.assets[] | select(.name | test("\\.(msi|exe|dmg|deb|rpm|AppImage|json)$")) | .url' | while read URL; do
+            # Download asset
+            curl -J -L -H "Authorization: token ${SRC_REPO_TOKEN}" \
+              -H "Accept: application/octet-stream" \
+              "$URL" --output "$(basename "$URL")"
+          done
+          
+          # Create new release in public repo
+          gh release create $VERSION *.{msi,exe,dmg,deb,rpm,AppImage,json} \
+            --title "Release $VERSION" \
+            --notes "Mirrored from private repository"
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
