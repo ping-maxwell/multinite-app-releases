@@ -49,6 +49,7 @@ jobs:
             "\.msi$"
             "\.dmg$"
             "\.deb$"
+            "\.exe$"
             "\.AppImage$"
             "\.sig$"
             "\.rhd$"
