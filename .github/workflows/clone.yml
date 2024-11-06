@@ -16,9 +16,9 @@ jobs:
 
       - name: Copy Release Assets
         env:
-          SRC_REPO_TOKEN: ${{ secrets.SRC_REPO_TOKEN }}
-          DEST_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SRC_REPO_TOKEN: ${{ secrets.TOKEN }}
+          DEST_REPO_TOKEN: ${{ secrets.TOKEN }}
+          GH_TOKEN: ${{ secrets.TOKEN }}
         run: |
           # Enable debug output
           set -x
