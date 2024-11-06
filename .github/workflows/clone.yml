@@ -20,9 +20,6 @@ jobs:
           DEST_REPO_TOKEN: ${{ secrets.TOKEN }}
           GH_TOKEN: ${{ secrets.TOKEN }}
         run: |
-          # Enable debug output
-          #set -x
-
           echo "Fetching latest release info from source repo..."
           RELEASE_INFO=$(curl -s -H "Authorization: token ${SRC_REPO_TOKEN}" \
             "https://api.github.com/repos/multinite/multinite-app/releases/latest")
@@ -44,6 +41,13 @@ jobs:
           # Check if release already exists in destination repo
           if gh release view "$VERSION" &>/dev/null; then
             echo "Release $VERSION already exists in destination repo. Skipping."
+            exit 0
+          fi
+          
+          # Check for Windows .exe files to ensure release is complete
+          EXE_COUNT=$(echo "$RELEASE_INFO" | jq '[.assets[].name | select(endswith(".exe"))] | length')
+          if [ "$EXE_COUNT" -eq 0 ]; then
+            echo "Release appears incomplete (no .exe files found). Waiting for completion."
             exit 0
           fi
           
@@ -78,6 +82,13 @@ jobs:
                 "$URL" --output "$NAME"
             fi
           done
+          
+          # Additional verification for completeness
+          EXE_FILES=$(ls *.exe 2>/dev/null | wc -l)
+          if [ "$EXE_FILES" -eq 0 ]; then
+            echo "Error: No .exe files found in downloaded assets. Release might be incomplete."
+            exit 1
+          fi
           
           # Verify we have downloaded files
           if [ -z "$(ls -A)" ]; then
