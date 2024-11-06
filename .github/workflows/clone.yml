@@ -64,14 +64,11 @@ jobs:
           cd assets
 
           # Download all assets EXCEPT source code archives
-          echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | endswith(".zip") or endswith(".tar.gz") | not) | [.name, .url] | @tsv' | while IFS=$'\t' read -r NAME URL; do
-            if [ -n "$NAME" ] && [ -n "$URL" ]; then
-              echo "Downloading $NAME from $URL"
-              curl -L -H "Authorization: token ${SRC_REPO_TOKEN}" \
-                -H "Accept: application/octet-stream" \
-                "$URL" --output "$NAME"
-            fi
-          done
+          echo "$RELEASE_INFO" | jq -r '.assets[] | select(
+            .name | 
+            (endswith(".zip") or (endswith(".tar.gz") and startswith("multinite-"))) | 
+            not
+          ) | [.name, .url] | @tsv' | while IFS=$'\t' read -r NAME URL; do
 
           # Verify we have downloaded files
           if [ -z "$(ls -A)" ]; then
