@@ -22,7 +22,7 @@ jobs:
         run: |
           echo "Fetching latest release info from source repo..."
           RELEASE_INFO=$(curl -s -H "Authorization: token ${SRC_REPO_TOKEN}" \
-            "https://api.github.com/repos/multinite/multinite-app/releases/latest")
+            "https://api.github.com/repos/ping-maxwell/multinite-app/releases/latest")
           
           # Check for errors in the API response
           if echo "$RELEASE_INFO" | jq -e '.message' >/dev/null; then
